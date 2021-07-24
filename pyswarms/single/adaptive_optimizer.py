@@ -76,19 +76,19 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
 
         @staticmethod
         def classify_next_state(
-            state_num: np.ndarray,
+            state_numeric: np.ndarray,
             curr_state: "AdaptiveOptimizerPSO.EvolutionState",
         ) -> "AdaptiveOptimizerPSO.EvolutionState":
             """Classify next state given the state numerics and the current state.
 
-            Use singleton method along with the single direction circular PSO sequence table. The circular PSO sequence is defined as S_1 => S_2 => S_3 => S_4 => S_1.
+            Use singleton method along with the single direction circular APSO sequence table. The circular APSO sequence is defined as S_1 => S_2 => S_3 => S_4 => S_1.
 
             Parameters
             ----------
-            evo_factor : float
-                the current evolutionary factor
-            curr_state : AdaptiveOptimizerPSO.EvolutionState
+            state_numeric : np.ndarray
                 (4,) in the order of [s1_num, s2_num, s3_num, s4_num].
+            curr_state : AdaptiveOptimizerPSO.EvolutionState
+                the current state that APSO is in.
 
             Returns
             -------
@@ -97,16 +97,16 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
             """
             EvolutionState = AdaptiveOptimizerPSO.EvolutionState
             if (curr_state is EvolutionState.S1_EXPLORATION and
-                    state_num[0] < state_num[1]):
+                    state_numeric[0] < state_numeric[1]):
                 return EvolutionState.S2_EXPLOITATION
             elif (curr_state is EvolutionState.S2_EXPLOITATION and
-                  state_num[1] < state_num[2]):
+                  state_numeric[1] < state_numeric[2]):
                 return EvolutionState.S3_CONVERGENCE
             elif (curr_state is EvolutionState.S3_CONVERGENCE and
-                  state_num[2] < state_num[3]):
+                  state_numeric[2] < state_numeric[3]):
                 return EvolutionState.S4_JUMPING_OUT
             elif (curr_state is EvolutionState.S4_JUMPING_OUT and
-                  state_num[3] < state_num[0]):
+                  state_numeric[3] < state_numeric[0]):
                 return EvolutionState.S1_EXPLORATION
             return curr_state
 
@@ -353,6 +353,8 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
             swarm=self.swarm, mean_distances=mean_distances)
         state_numeric: np.ndarray = self.__compute_state_numeric(
             evo_factor=evo_factor)
+        self.state = AdaptiveOptimizerPSO.EvolutionState.classify_next_state(
+            state_numeric=state_numeric, curr_state=self.state)
 
     def __compute_state_numeric(self, evo_factor: float) -> np.ndarray:
         """Compute evolutionary state numeric.

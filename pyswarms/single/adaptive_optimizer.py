@@ -1,18 +1,19 @@
 # Import standard library
 import logging
-from typing import Callable, Deque, Dict, Optional, Tuple, Union
+import multiprocessing as mp
+from collections import deque
 from enum import Enum, auto
+from multiprocessing.pool import Pool
+from typing import Callable, Deque, Dict, Optional, Tuple, Union
 
 # Import modules
 import numpy as np
-import multiprocessing as mp
-from multiprocessing.pool import Pool
 
-from collections import deque
-
-from ..backend.operators import compute_evolutionary_factor, compute_pbest, compute_objective_function, compute_particle_mean_distances
-from ..backend.topology import Topology
 from ..backend.handlers import BoundaryHandler, VelocityHandler
+from ..backend.operators import (compute_evolutionary_factor,
+                                 compute_objective_function,
+                                 compute_particle_mean_distances, compute_pbest)
+from ..backend.topology import Topology
 from ..base import SwarmOptimizer
 from ..utils.reporter import Reporter
 
@@ -72,6 +73,42 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
             elif 0.9 < evo_factor and evo_factor <= 1.0:
                 return 1.0
             raise ValueError("evo_factor not in range [0.0, 1.0]")
+
+        @staticmethod
+        def classify_next_state(
+            state_num: np.ndarray,
+            curr_state: "AdaptiveOptimizerPSO.EvolutionState",
+        ) -> "AdaptiveOptimizerPSO.EvolutionState":
+            """Classify next state given the state numerics and the current state.
+
+            Use singleton method along with the single direction circular PSO sequence table. The circular PSO sequence is defined as S_1 => S_2 => S_3 => S_4 => S_1.
+
+            Parameters
+            ----------
+            evo_factor : float
+                the current evolutionary factor
+            curr_state : AdaptiveOptimizerPSO.EvolutionState
+                (4,) in the order of [s1_num, s2_num, s3_num, s4_num].
+
+            Returns
+            -------
+            AdaptiveOptimizerPSO.EvolutionState
+                the next evolutionary state.
+            """
+            EvolutionState = AdaptiveOptimizerPSO.EvolutionState
+            if (curr_state is EvolutionState.S1_EXPLORATION and
+                    state_num[0] < state_num[1]):
+                return EvolutionState.S2_EXPLOITATION
+            elif (curr_state is EvolutionState.S2_EXPLOITATION and
+                  state_num[1] < state_num[2]):
+                return EvolutionState.S3_CONVERGENCE
+            elif (curr_state is EvolutionState.S3_CONVERGENCE and
+                  state_num[2] < state_num[3]):
+                return EvolutionState.S4_JUMPING_OUT
+            elif (curr_state is EvolutionState.S4_JUMPING_OUT and
+                  state_num[3] < state_num[0]):
+                return EvolutionState.S1_EXPLORATION
+            return curr_state
 
     rep: Reporter
     top: Topology
@@ -243,8 +280,8 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
         self.vh.memory = self.swarm.position
 
         # Setup Pool of processes for parallel evaluation
-        pool: Union[Pool, None] = None if n_processes is None else mp.Pool(
-            n_processes)
+        pool: Union[Pool, None] = (None if n_processes is None else
+                                   mp.Pool(n_processes))
 
         self.swarm.pbest_cost = np.full(self.swarm_size[0], np.inf)
         ftol_history: Deque = deque(maxlen=self.ftol_iter)

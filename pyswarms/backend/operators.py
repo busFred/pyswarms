@@ -251,7 +251,7 @@ def compute_objective_function(swarm: Swarm,
         return np.concatenate(results)
 
 
-def compute_particle_mean_distances(swarm: Swarm,) -> np.ndarray:
+def compute_particle_mean_distances(swarm: Swarm) -> np.ndarray:
     """Calculate mean distances for all of all particles.
 
     At the current position, caluclate the mean euclidiain distance of each particle i to all the other particles.
@@ -280,3 +280,31 @@ def compute_particle_mean_distances(swarm: Swarm,) -> np.ndarray:
         mean_distance: float = np.mean(distances)
         mean_distances[i] = mean_distance
     return mean_distances
+
+
+def compute_evolutionary_factor(swarm: Swarm,
+                                mean_distances: np.ndarray) -> float:
+    """Calculate the evolutionary factor.
+
+    The evolutionary factor f = (d_g - d_min)/(d_max - d_min) is in range [0, 1], where d_g is the mean distance of the current global best, d_min and d_max is the maximum and minimum mean distance in mean_distances, respectively.
+
+    Parameters
+    ----------
+    swarm : Swarm
+        the swarm to be evaluated
+    mean_distances : np.ndarray
+        (n_particles, ) the mean distances of all particles.
+
+    Returns
+    -------
+    float
+        the evolutionary factor.
+    """
+    min_mean_dist: float = np.min(mean_distances)
+    max_mean_dist: float = np.max(mean_distances)
+    gbest_idx: int = np.argwhere(
+        np.all(swarm.position == swarm.best_pos, axis=1))[0].item()
+    gbest_mean_dist: float = mean_distances[gbest_idx]
+    evo_factor = (gbest_mean_dist - min_mean_dist) / (max_mean_dist -
+                                                      min_mean_dist)
+    return evo_factor

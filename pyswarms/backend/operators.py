@@ -68,13 +68,11 @@ def compute_pbest(swarm: Swarm) -> Tuple[np.ndarray, np.ndarray]:
         mask_pos = np.repeat(mask_cost[:, np.newaxis], dimensions, axis=1)
         # Apply masks
         new_pbest_pos = np.where(~mask_pos, swarm.pbest_pos, swarm.position)
-        new_pbest_cost = np.where(
-            ~mask_cost, swarm.pbest_cost, swarm.current_cost
-        )
+        new_pbest_cost = np.where(~mask_cost, swarm.pbest_cost,
+                                  swarm.current_cost)
     except AttributeError:
-        rep.logger.exception(
-            "Please pass a Swarm class. You passed {}".format(type(swarm))
-        )
+        rep.logger.exception("Please pass a Swarm class. You passed {}".format(
+            type(swarm)))
         raise
     else:
         return (new_pbest_pos, new_pbest_cost)
@@ -84,9 +82,8 @@ def compute_velocity(
     swarm: Swarm,
     clamp: Tuple[float, float],
     vh: VelocityHandler,
-    bounds: Optional[
-        Union[Tuple[np.ndarray, np.ndarray], Tuple[List[float], List[float]]]
-    ] = None,
+    bounds: Optional[Union[Tuple[np.ndarray, np.ndarray],
+                           Tuple[List[float], List[float]]]] = None,
 ) -> np.ndarray:
     """Update the velocity matrix
 
@@ -137,26 +134,20 @@ def compute_velocity(
         c2 = swarm.options["c2"]
         w = swarm.options["w"]
         # Compute for cognitive and social terms
-        cognitive = (
-            c1
-            * np.random.uniform(0, 1, swarm_size)
-            * (swarm.pbest_pos - swarm.position)
-        )
-        social = (
-            c2
-            * np.random.uniform(0, 1, swarm_size)
-            * (swarm.best_pos - swarm.position)
-        )
+        cognitive = (c1 * np.random.uniform(0, 1, swarm_size) *
+                     (swarm.pbest_pos - swarm.position))
+        social = (c2 * np.random.uniform(0, 1, swarm_size) *
+                  (swarm.best_pos - swarm.position))
         # Compute temp velocity (subject to clamping if possible)
         temp_velocity = (w * swarm.velocity) + cognitive + social
-        updated_velocity = vh(
-            temp_velocity, clamp, position=swarm.position, bounds=bounds
-        )
+        updated_velocity = vh(temp_velocity,
+                              clamp,
+                              position=swarm.position,
+                              bounds=bounds)
 
     except AttributeError:
-        rep.logger.exception(
-            "Please pass a Swarm class. You passed {}".format(type(swarm))
-        )
+        rep.logger.exception("Please pass a Swarm class. You passed {}".format(
+            type(swarm)))
         raise
     except KeyError:
         rep.logger.exception("Missing keyword in swarm.options")
@@ -167,9 +158,8 @@ def compute_velocity(
 
 def compute_position(
     swarm: Swarm,
-    bounds: Optional[
-        Union[Tuple[np.ndarray, np.ndarray], Tuple[List[float], List[float]]]
-    ],
+    bounds: Optional[Union[Tuple[np.ndarray, np.ndarray], Tuple[List[float],
+                                                                List[float]]]],
     bh: BoundaryHandler,
 ) -> np.ndarray:
     """Update the position matrix
@@ -216,20 +206,17 @@ def compute_position(
 
         position = temp_position
     except AttributeError:
-        rep.logger.exception(
-            "Please pass a Swarm class. You passed {}".format(type(swarm))
-        )
+        rep.logger.exception("Please pass a Swarm class. You passed {}".format(
+            type(swarm)))
         raise
     else:
         return position
 
 
-def compute_objective_function(
-    swarm: Swarm,
-    objective_func: Callable,
-    pool: Optional[Pool] = None,
-    **kwargs
-):
+def compute_objective_function(swarm: Swarm,
+                               objective_func: Callable,
+                               pool: Optional[Pool] = None,
+                               **kwargs):
     """Evaluate particles using the objective function
 
     This method evaluates each particle in the swarm according to the objective
@@ -262,3 +249,34 @@ def compute_objective_function(
             np.array_split(swarm.position, pool._processes),
         )
         return np.concatenate(results)
+
+
+def compute_particle_mean_distances(swarm: Swarm,) -> np.ndarray:
+    """Calculate mean distances for all of all particles.
+
+    At the current position, caluclate the mean euclidiain distance of each particle i to all the other particles.
+
+    Parameters
+    ----------
+    swarm : Swarm
+        the swarm to be used to calculate mean distances.
+
+    Returns
+    -------
+    np.ndarray
+        (n_particles, ) mean_distances of all particles.
+    """
+    mean_distances: np.ndarray = np.full(shape=(swarm.n_particles),
+                                         fill_value=0.0)
+    for i, position in enumerate(swarm.position):
+        # both have shape (n_particles - 1, dimesnions)
+        curr_position: np.ndarray = np.full(shape=(swarm.n_particles - 1,
+                                                   swarm.dimensions),
+                                            fill_value=position)
+        other_positions: np.ndarray = np.delete(swarm.position, i, axis=0)
+        # distances have shape (n_particles - 1)
+        distances: np.ndarray = np.linalg.norm(curr_position - other_positions,
+                                               axis=1)
+        mean_distance: float = np.mean(distances)
+        mean_distances[i] = mean_distance
+    return mean_distances

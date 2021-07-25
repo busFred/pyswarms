@@ -2,9 +2,10 @@
 import logging
 import multiprocessing as mp
 from collections import deque
-from enum import Enum, auto
+from enum import Enum
 from multiprocessing.pool import Pool
 from typing import Callable, Deque, Dict, Optional, Tuple, Union
+import math
 
 # Import modules
 import numpy as np
@@ -140,8 +141,7 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
             number of particles in the swarm.
         dimensions : int
             number of dimensions in the space.
-        options : dict with keys :code:`{'c1', 'c2', 'w'}` or :code:`{'c1',
-                'c2', 'w', 'k', 'p'}`
+        options : dict with keys :code:`{'c1', 'c2', 'w'}` or :code:`{'c1', 'c2', 'w', 'k', 'p'}`
             a dictionary containing the parameters for the specific
             optimization technique.
                 * c1 : float
@@ -150,6 +150,10 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
                     social parameter
                 * w : float
                     inertia parameter
+                * w_min : float
+                    minimum inertia parameter
+                * w_max : float
+                    maximum inertia parameter
                 if used with the :code:`Ring`, :code:`VonNeumann` or
                 :code:`Random` topology the additional parameter k must be
                 included
@@ -355,6 +359,7 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
             evo_factor=evo_factor)
         self.state = AdaptiveOptimizerPSO.EvolutionState.classify_next_state(
             state_numeric=state_numeric, curr_state=self.state)
+        self.__update_intertia(evo_factor=evo_factor)
 
     def __compute_state_numeric(self, evo_factor: float) -> np.ndarray:
         """Compute evolutionary state numeric.
@@ -380,3 +385,18 @@ class AdaptiveOptimizerPSO(SwarmOptimizer):
         state_num[3] = EvolutionState.compute_jump_out_numeric(
             evo_factor=evo_factor)
         return state_num
+
+    def __update_intertia(self, evo_factor: float) -> None:
+        """Update inertia.
+
+        Update the inertia according to: w(f) = 1/(1+1.5e^(-2.6*evo_factor)).
+
+        Parameters
+        ----------
+        evo_factor : float
+            the evolutionary factor at current step
+        """
+        new_inertia: float = 1.0 / (1.0 + 1.5 * math.exp(-2.6 * evo_factor))
+        self.swarm.options["w"] = new_inertia
+        if self.swarm.options is not self.options:
+            self.options["w"] = new_inertia
